@@ -17,47 +17,18 @@ function createFrontendScaffold(parent, structure) {
     });
 }
 
-function findJavascriptDirectory(startPath) {
-    function searchDir(currentPath) {
-        const files = fs.readdirSync(currentPath, { withFileTypes: true });
-        for (const file of files) {
-            const fullPath = path.join(currentPath, file.name);
-            if (file.isDirectory() && file.name === 'javascript') {
-                return fullPath;
-            }
-        }
-        return null;
-    }
-    return searchDir(startPath) || path.resolve(__dirname, 'javascript');
-}
-
-function findTemplateFile(basePath, fileName) {
-    const searchDir = (dir) => {
-        const files = fs.readdirSync(dir, { withFileTypes: true });
-        for (const file of files) {
-            const fullPath = path.join(dir, file.name);
-            if (!file.isDirectory() && file.name === fileName) {
-                return fullPath;
-            }
-        }
-        return null;
-    };
-    return searchDir(basePath);
-}
-
-function copyTemplateFiles(destination) {
-    const utilsPath = findJavascriptDirectory(process.cwd());
+function copyTemplateFiles(destination, templateDir) {
     const filesToCopy = ['.gitignore', 'package.json', 'live-server.config.js'];
-    
+
     filesToCopy.forEach(file => {
-        const src = findTemplateFile(utilsPath, file);
+        const src = path.join(templateDir, file);
         const dest = path.join(destination, file);
-        
-        if (src && fs.existsSync(src)) {
+
+        if (fs.existsSync(src)) {
             fs.copyFileSync(src, dest);
             console.log(`Copied ${file} to ${destination}`);
         } else {
-            console.warn(`Warning: ${file} not found under the 'javascript' directory in ${process.cwd()}`);
+            console.warn(`Warning: ${file} not found in template directory '${templateDir}'`);
         }
     });
 }
@@ -66,7 +37,7 @@ function setupNodeModules(destination) {
     try {
         console.log('Initializing npm project...');
         execSync('npm init -y', { cwd: destination, stdio: 'inherit' });
-        
+
         console.log('Installing dependencies...');
         execSync('npm install jquery live-server', { cwd: destination, stdio: 'inherit' });
     } catch (error) {
@@ -76,19 +47,24 @@ function setupNodeModules(destination) {
 }
 
 function main() {
-    if (process.argv.length < 3) {
-        console.error('Usage: node scaffold.js <json_file> [destination]');
+    if (process.argv.length < 5) {
+        console.error('Usage: node scaffolder.js <json_file> <destination> <template_directory>');
         process.exit(1);
     }
-    
+
     const jsonFile = path.resolve(process.argv[2]);
-    const destination = process.argv[3] ? path.resolve(process.argv[3]) : process.cwd();
-    
+    const destination = path.resolve(process.argv[3]);
+    const templateDir = path.resolve(process.argv[4]);
+
     if (!fs.existsSync(jsonFile)) {
         console.error(`Error: File '${jsonFile}' does not exist.`);
         process.exit(1);
     }
-    
+    if (!fs.existsSync(templateDir)) {
+        console.error(`Error: Template directory '${templateDir}' does not exist.`);
+        process.exit(1);
+    }
+
     let projectStructure;
     try {
         projectStructure = JSON.parse(fs.readFileSync(jsonFile, 'utf8'));
@@ -96,20 +72,21 @@ function main() {
         console.error(`Error parsing JSON file '${jsonFile}':`, error);
         process.exit(1);
     }
-    
+
     console.log(`Creating front-end project structure in ${destination}...`);
     createFrontendScaffold(destination, projectStructure);
     console.log('Project structure created successfully.');
-    
-    copyTemplateFiles(destination);
+
+    copyTemplateFiles(destination, templateDir);
     setupNodeModules(destination);
     console.log('Front-end project setup complete!');
-    
+
     console.log('\nTo start development:');
     console.log('  cd ' + destination);
     console.log('  npm start (or configure your package.json for start scripts)');
 }
 
 main();
+ 
 
-// node scaffolder.js ./utils/javascript/template.json .
+// node ./utils/javascript/scaffolder.js ./utils/javascript/template.json . ./utils/javascript
