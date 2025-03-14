@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+import shutil
 
 def create_flask_scaffold(parent: Path, structure: dict):
     """Create directory structure and files from the given structure dictionary."""
@@ -20,28 +21,43 @@ def create_flask_scaffold(parent: Path, structure: dict):
                 path.touch(exist_ok=True)
                 if content:
                     try:
-                        # If content is a string, write it directly
                         path.write_text(content)
                     except TypeError:
-                        # If content is a dict/list (from JSON), convert to formatted string
                         path.write_text(json.dumps(content, indent=4))
 
-def setup_virtualenv(parent: Path, venv_name: str = "venv"):
-    """Set up a virtual environment and install requirements."""
+def setup_virtualenv(parent: Path, python_interpreter: str, venv_name: str = "venv"):
+    """Set up a virtual environment using the specified Python interpreter."""
     venv_path = parent / venv_name
     try:
-        subprocess.run(["python3", "-m", "venv", str(venv_path)], check=True)
+        subprocess.run([python_interpreter, "-m", "venv", str(venv_path)], check=True)
         req_file = parent / "requirements.txt"
         if req_file.exists() and req_file.read_text().strip():
             subprocess.run([str(venv_path / "bin" / "pip"), "install", "-r", str(req_file)], check=True)
-        print(f"Virtual environment created at {venv_path}")
+        print(f"Virtual environment created at {venv_path} using {python_interpreter}")
         return venv_path
     except subprocess.CalledProcessError as e:
         print(f"Error setting up virtual environment: {e}")
         sys.exit(1)
 
+def find_gitignore_source() -> Path:
+    """Find the first .gitignore file inside any 'python' directory within the current working directory."""
+    current_dir = Path.cwd()
+    for path in current_dir.rglob("python/.gitignore"):
+        return path
+    return None
+
+def copy_gitignore(destination: Path):
+    """Copy .gitignore from the first found 'python' directory."""
+    gitignore_src = find_gitignore_source()
+    if gitignore_src:
+        gitignore_dest = destination / ".gitignore"
+        shutil.copy(gitignore_src, gitignore_dest)
+        print(f"Copied .gitignore from {gitignore_src} to {gitignore_dest}")
+    else:
+        print("Warning: No .gitignore found in any 'python' directory.")
+
 def valid_json_file(file_path: str) -> Path:
-    """Validate that the argument is a valid path to a JSON file."""
+    """Validate that the argument is a valid JSON file path."""
     path = Path(file_path)
     if not path.exists():
         raise argparse.ArgumentTypeError(f"File '{file_path}' does not exist")
@@ -61,56 +77,73 @@ def valid_directory(dir_path: str) -> Path:
     return path
 
 def main():
-    # Set up argument parser
     parser = argparse.ArgumentParser(
         description="Create a Flask project scaffold from a JSON structure file"
     )
     parser.add_argument(
         "json_file",
         type=valid_json_file,
+        nargs="?",  # Make it optional
+        default=None,
         help="Path to the JSON file containing the project structure"
     )
     parser.add_argument(
-        "--destination",
-        "-d",
+        "--destination", "-d",
         type=valid_directory,
         default=Path.cwd(),
         help="Destination directory for the project (must exist, defaults to current directory)"
     )
-
+    parser.add_argument(
+        "--python", "-p",
+        type=str,
+        default="python3",
+        help="Specify the Python interpreter for the virtual environment (default: python3)"
+    )
+    parser.add_argument(
+        "--venv-only",
+        action="store_true",
+        help="Only create the virtual environment, skip project structure creation"
+    )
+    
     args = parser.parse_args()
-
-    # Read and validate JSON file
-    try:
-        with args.json_file.open("r") as f:
-            project_structure = json.load(f)
-    except json.JSONDecodeError as e:
-        print(f"Error: Invalid JSON in '{args.json_file}': {e}")
-        sys.exit(1)
-    except PermissionError:
-        print(f"Error: Permission denied accessing '{args.json_file}'")
-        sys.exit(1)
-
-    # Create project structure
-    destination = args.destination
-    # Removed mkdir - validation is now handled by valid_directory
     
-    print(f"Creating project structure in {destination}")
-    create_flask_scaffold(destination, project_structure)
-    print("Project structure created successfully")
+    if args.venv_only:
+        venv_path = setup_virtualenv(args.destination, args.python)
+        print("Virtual environment setup complete!")
+    else:
+        if not args.json_file:
+            print("Error: JSON file must be provided unless --venv-only is specified.")
+            sys.exit(1)
+        try:
+            with args.json_file.open("r") as f:
+                project_structure = json.load(f)
+        except json.JSONDecodeError as e:
+            print(f"Error: Invalid JSON in '{args.json_file}': {e}")
+            sys.exit(1)
+        except PermissionError:
+            print(f"Error: Permission denied accessing '{args.json_file}'")
+            sys.exit(1)
+        
+        destination = args.destination
+        
+        print(f"Creating project structure in {destination}")
+        create_flask_scaffold(destination, project_structure)
+        print("Project structure created successfully")
+        
+        copy_gitignore(destination)
     
-    # Setup virtual environment
-    venv_path = setup_virtualenv(destination)
-    print("Project setup complete!")
+        venv_path = setup_virtualenv(args.destination, args.python)
+        print("Project setup complete!")
     
-    # Print usage instructions
     print("\nTo activate the virtual environment:")
     print(f"  source {venv_path / 'bin' / 'activate'}")
     print("To run the application:")
-    print(f"  python {destination / 'run.py'}")
+    print(f"  python {args.destination / 'run.py'}")
 
 if __name__ == "__main__":
     main()
-    
-    
-# python3 python/scaffolder.py python/template.json -d . 
+
+# python3 python/scaffolder.py --venv-only -d . --python python3
+# python3 python/scaffolder.py python/template.json -d . --python python3
+
+ 
