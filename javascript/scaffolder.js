@@ -111,3 +111,5 @@ function main() {
 }
 
 main();
+
+// node scaffolder.js ./utils/javascript/template.json .
