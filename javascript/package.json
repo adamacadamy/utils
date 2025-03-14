@@ -1,0 +1,15 @@
+{
+    "name": "liveserver",
+    "version": "1.0.0",
+    "main": "script.js",
+    "scripts": {
+      "start": "live-server app --port=3000 --no-browser"
+    },
+    "author": "",
+    "license": "ISC",
+    "description": "",
+    "devDependencies": {
+      "live-server": "^1.2.2"
+    }
+  }
+  

@@ -9,8 +9,9 @@
         },
         "assets": {
             "images": {}
-        },
-        "README.md": "",
-        "package.json": ""
-    }
+        }
+    },
+    "live-server.config.js": "",
+    "README.md": "",
+    "package.json": "",
 }
