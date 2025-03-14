@@ -65,3 +65,6 @@ function main() {
 }
 
 main();
+
+
+// node javascript/scaffolder.js javascript/template.json .                   

@@ -111,3 +111,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
+    
+# python3 python/scaffolder.py python/template.json -d . 
