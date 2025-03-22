@@ -25,7 +25,7 @@ def create_flask_scaffold(parent: Path, structure: dict):
                     except TypeError:
                         path.write_text(json.dumps(content, indent=4))
 
-def setup_virtualenv(parent: Path, python_interpreter: str, venv_name: str = "venv"):
+def setup_virtualenv(parent: Path, python_interpreter: str, venv_name: str = ".venv"):
     """Set up a virtual environment using the specified Python interpreter."""
     venv_path = parent / venv_name
     try:
